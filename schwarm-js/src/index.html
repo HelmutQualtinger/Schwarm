@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partikelschwarm</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.velocityX = Math.random() * 10 - 5;
+                this.velocityY = Math.random() * 10 - 5;
+                this.mass = 1;
+                this.soundPlayed = false;
+                this.trail = [];
+                this.trailLength = 10;
+                this.color = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+            }
+
+            update(mouseX, mouseY, particles) {
+                const distanceXMouse = mouseX - this.x;
+                const distanceYMouse = mouseY - this.y;
+                let distanceMouse = Math.sqrt(distanceXMouse ** 2 + distanceYMouse ** 2);
+                distanceMouse = Math.max(distanceMouse, 5);
+                const forceMouse = 100 / (distanceMouse ** 2);
+
+                const forceXMouse = forceMouse * (distanceXMouse / distanceMouse);
+                const forceYMouse = forceMouse * (distanceYMouse / distanceMouse);
+
+                let accelerationX = forceXMouse / this.mass;
+                let accelerationY = forceYMouse / this.mass;
+
+                for (const other of particles) {
+                    if (other !== this) {
+                        const distanceX = other.x - this.x;
+                        const distanceY = other.y - this.y;
+                        let distance = Math.sqrt(distanceX ** 2 + distanceY ** 2);
+                        distance = Math.max(distance, 5);
+                        const force = 1 / (distance ** 2);
+
+                        const forceX = force * (distanceX / distance);
+                        const forceY = force * (distanceY / distance);
+
+                        accelerationX += forceX / this.mass;
+                        accelerationY += forceY / this.mass;
+
+                        if (distance < 4 && !this.soundPlayed) {
+                            // Play collision sound
+                            const sound = new Audio('click.mp3');
+                            sound.volume = 0.3; // Set volume to 30%
+                            sound.play().catch(e => console.log('Audio play failed:', e));
+                            this.soundPlayed = true;r
+                        }
+                    }
+                }
+
+                this.velocityX += accelerationX;
+                this.velocityY += accelerationY;
+
+                this.velocityX *= 0.99;
+                this.velocityY *= 0.99;
+
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > this.trailLength) {
+                    this.trail.shift();
+                }
+
+                if (this.x < 0 || this.x > canvas.width) {
+                    this.velocityX *= -1;
+                }
+                if (this.y < 0 || this.y > canvas.height) {
+                    this.velocityY *= -1;
+                }
+            }
+
+            draw() {
+                for (let i = 0; i < this.trail.length; i++) {
+                    const pos = this.trail[i];
+                    const colorValue = Math.floor(255 * (i / this.trail.length));
+                    ctx.fillStyle = `rgb(${this.color.r}, ${this.color.g}, ${colorValue})`;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        const particles = [];
+        for (let i = 0; i < 500; i++) {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height;
+            particles.push(new Particle(x, y));
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const mouseX = canvas.mouseX || canvas.width / 2;
+            const mouseY = canvas.mouseY || canvas.height / 2;
+
+            for (const particle of particles) {
+                particle.update(mouseX, mouseY, particles);
+                particle.draw();
+            }
+
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            requestAnimationFrame(animate);
+        }
+
+        canvas.addEventListener('mousemove', (event) => {
+            canvas.mouseX = event.clientX;
+            canvas.mouseY = event.clientY;
+        });
+
+        animate();
+    </script>
+</body>
+</html>
